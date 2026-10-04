@@ -1,6 +1,16 @@
-.venv/
+# Python
 __pycache__/
-*.pyc
-pdbs/
-results/
-*.png
+*.py[cod]
+*.pyo
+
+# Virtual environment
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
