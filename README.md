@@ -1,7 +1,6 @@
 # 🧬 Protein Surface Roughness Analysis Using SAFD
 **In one sentence:** this project measures how *rough* each part of a protein's surface is, and tests whether the roughest regions are where the protein binds other molecules.
 
-**Contents**
 ## 📚 Contents
 
 | Section | What you'll find |
@@ -61,23 +60,21 @@ Imagine rolling balls of increasing size over a surface:
 The steeper the drop, the rougher the surface. SAFD turns that drop into a number.
 ### The calculation for one atom
 ```mermaid
-
 flowchart TD
 
-&#x20;   A\["Pick a surface atom"] --> B\["Find all atoms within 5 Å"]
+A\["Pick a surface atom"] --> B\["Find all atoms within 5 Å"]
 
-&#x20;   B --> C\["For each probe radius Rp:<br/>1.2, 1.4, 1.6, 1.8, 2.1 Å<br/>add up the accessible area of those atoms"]
+B --> C\["For each probe radius Rp:<br/>1.2, 1.4, 1.6, 1.8, 2.1 Å<br/>add up the accessible area of those atoms"]
 
-&#x20;   C --> D\["You now have 5 pairs:<br/>Rp and area A of Rp"]
+C --> D\["You now have 5 pairs:<br/>Rp and area A of Rp"]
 
-&#x20;   D --> E\["Take logs:<br/>log Rp and log A"]
+D --> E\["Take logs:<br/>log Rp and log A"]
 
-&#x20;   E --> F\["Fit a straight line<br/>log A = m \* log Rp + c"]
+E --> F\["Fit a straight line<br/>log A = m * log Rp + c"]
 
-&#x20;   F --> G\["Read off the slope m"]
+F --> G\["Read off the slope m"]
 
-&#x20;   G --> H\["SAFD:  f = 2 - m"]
-
+G --> H\["SAFD:  f = 2 - m"]
 ```
 ### The formula
 The accessible area is fitted against the probe radius on a log–log scale:
@@ -100,86 +97,80 @@ Because $m$ is negative, a **steeper drop gives a larger $f$**.
 ### How the area itself is computed
 sasa.py uses the **Shrake–Rupley algorithm**:
 ```mermaid
-
 flowchart LR
 
-&#x20;   A\["Atom with radius<br/>vdW + probe"] --> B\["Place 96 test points<br/>evenly on its sphere<br/>golden spiral"]
+A\["Atom with radius<br/>vdW + probe"] --> B\["Place 96 test points<br/>evenly on its sphere<br/>golden spiral"]
 
-&#x20;   B --> C\["Check each point<br/>is it inside a<br/>neighboring atom?"]
+B --> C\["Check each point<br/>is it inside a<br/>neighboring atom?"]
 
-&#x20;   C --> D\["Count the points<br/>that are NOT buried"]
+C --> D\["Count the points<br/>that are NOT buried"]
 
-&#x20;   D --> E\["Area = full sphere area<br/>x fraction exposed"]
-
+D --> E\["Area = full sphere area<br/>x fraction exposed"]
 ```
 Atom sizes use standard **Bondi van der Waals radii** (C 1.70, N 1.55, O 1.52, S 1.80 Å, and so on).
 ---
 ## 🧠 The full pipeline
 ```mermaid
-
 flowchart TD
 
-&#x20;   A\["Protein structure<br/>PDB file"] --> B\["Extract standard<br/>protein atoms"]
+A\["Protein structure<br/>PDB file"] --> B\["Extract standard<br/>protein atoms"]
 
-&#x20;   B --> C\["Compute atomic contact area<br/>at 5 probe radii"]
+B --> C\["Compute atomic contact area<br/>at 5 probe radii"]
 
-&#x20;   C --> D\["Select surface atoms<br/>accessible at 1.4 Å"]
+C --> D\["Select surface atoms<br/>accessible at 1.4 Å"]
 
-&#x20;   D --> E\["Sum area over a<br/>5 Å neighborhood"]
+D --> E\["Sum area over a<br/>5 Å neighborhood"]
 
-&#x20;   E --> F\["Log–log fit"]
+E --> F\["Log–log fit"]
 
-&#x20;   F --> G\["SAFD value<br/>for each surface atom"]
-
-
-
-&#x20;   G --> H\["Validation:<br/>site vs non-site"]
-
-&#x20;   G --> I\["Pocket prediction:<br/>high SAFD + DBSCAN"]
+F --> G\["SAFD value<br/>for each surface atom"]
 
 
 
-&#x20;   H --> J\["Bound / Apo / Non-cleft<br/>comparison"]
+G --> H\["Validation:<br/>site vs non-site"]
 
-&#x20;   H --> K\["Site-size analysis"]
-
-&#x20;   H --> L\["Thermal adaptation analysis"]
-
-&#x20;   I --> M\["Benchmark against<br/>known binding sites"]
+G --> I\["Pocket prediction:<br/>high SAFD + DBSCAN"]
 
 
 
-&#x20;   J --> N\["Plots and statistics"]
+H --> J\["Bound / Apo / Non-cleft<br/>comparison"]
 
-&#x20;   K --> N
+H --> K\["Site-size analysis"]
 
-&#x20;   L --> N
+H --> L\["Thermal adaptation analysis"]
 
-&#x20;   M --> N
+I --> M\["Benchmark against<br/>known binding sites"]
 
+
+
+J --> N\["Plots and statistics"]
+
+K --> N
+
+L --> N
+
+M --> N
 ```
 **In words:** every analysis in this repository starts from the same place, a SAFD value for each surface atom. What changes is the question asked of those values.
 ---
 ## 🧩 How functional sites are identified
 To test whether binding sites are rougher, we first need to know where the binding sites are. The code looks for them in this order:
 ```mermaid
-
 flowchart TD
 
-&#x20;   A\["Structure loaded"] --> B{"Bound ligand<br/>HETATM found?<br/>water excluded"}
+A\["Structure loaded"] --> B{"Bound ligand<br/>HETATM found?<br/>water excluded"}
 
-&#x20;   B -- Yes --> C\["Site = protein atoms<br/>within 4 Å of the ligand"]
+B -- Yes --> C\["Site = protein atoms<br/>within 4 Å of the ligand"]
 
-&#x20;   B -- No --> D{"PDB SITE records<br/>present?"}
+B -- No --> D{"PDB SITE records<br/>present?"}
 
-&#x20;   D -- Yes --> E\["Site = residues listed<br/>in the SITE records"]
+D -- Yes --> E\["Site = residues listed<br/>in the SITE records"]
 
-&#x20;   D -- No --> F{"More than one<br/>protein chain?"}
+D -- No --> F{"More than one<br/>protein chain?"}
 
-&#x20;   F -- Yes --> G\["Treat extra chains as the binding partner.<br/>Site = atoms within 4 Å of them"]
+F -- Yes --> G\["Treat extra chains as the binding partner.<br/>Site = atoms within 4 Å of them"]
 
-&#x20;   F -- No --> H\["No site found"]
-
+F -- No --> H\["No site found"]
 ```
 Water molecules (HOH, WAT, DOD) are always ignored.
 **Note:** the exact fallback order differs slightly between scripts. run\_full\_project.py and site\_size\_analysis.py are the reference implementations for the results below.
@@ -188,21 +179,19 @@ Water molecules (HOH, WAT, DOD) are always ignored.
 ## 🔎 Binding pocket prediction
 Implemented in predict\_pockets.py. The idea: **rough atoms that sit close together probably form a pocket.**
 ```mermaid
-
 flowchart TD
 
-&#x20;   A\["SAFD for all<br/>surface atoms"] --> B\["Keep atoms with<br/>SAFD above a threshold"]
+A\["SAFD for all<br/>surface atoms"] --> B\["Keep atoms with<br/>SAFD above a threshold"]
 
-&#x20;   B --> C\["DBSCAN clustering<br/>in 3D space"]
+B --> C\["DBSCAN clustering<br/>in 3D space"]
 
-&#x20;   C --> D\["Discard noise points<br/>that belong to no cluster"]
+C --> D\["Discard noise points<br/>that belong to no cluster"]
 
-&#x20;   D --> E\["Rank clusters by<br/>total SAFD score"]
+D --> E\["Rank clusters by<br/>total SAFD score"]
 
-&#x20;   E --> F\["Top clusters =<br/>candidate pockets"]
+E --> F\["Top clusters =<br/>candidate pockets"]
 
-&#x20;   F --> G\["Compare with the<br/>known ligand location"]
-
+F --> G\["Compare with the<br/>known ligand location"]
 ```
 | Setting | Value | Used in |
 |---|---|---|
@@ -215,29 +204,27 @@ flowchart TD
 ### How predictions are scored
 benchmark.py judges predictions at the **residue level**:
 ```mermaid
-
 flowchart TD
 
-&#x20;   A\["Take the top 2 clusters<br/>combined"] --> B\["Predicted residues"]
+A\["Take the top 2 clusters<br/>combined"] --> B\["Predicted residues"]
 
-&#x20;   C\["Residues within 4 Å of the<br/>ligand or partner"] --> D\["True site residues"]
+C\["Residues within 4 Å of the<br/>ligand or partner"] --> D\["True site residues"]
 
-&#x20;   B --> E\["Overlap =<br/>predicted AND true"]
+B --> E\["Overlap =<br/>predicted AND true"]
 
-&#x20;   D --> E
+D --> E
 
-&#x20;   E --> F\["Sensitivity = overlap / true site residues"]
+E --> F\["Sensitivity = overlap / true site residues"]
 
-&#x20;   E --> G\["Specificity = overlap / predicted residues"]
+E --> G\["Specificity = overlap / predicted residues"]
 
-&#x20;   F --> H{"Overlap at least 1<br/>AND both scores at least<br/>2x random expectation?"}
+F --> H{"Overlap at least 1<br/>AND both scores at least<br/>2x random expectation?"}
 
-&#x20;   G --> H
+G --> H
 
-&#x20;   H -- Yes --> I\["✅ PASS"]
+H -- Yes --> I\["✅ PASS"]
 
-&#x20;   H -- No --> J\["❌ FAIL"]
-
+H -- No --> J\["❌ FAIL"]
 ```
 The **random expectation** is what you would get by picking the same number of residues at random on the surface (following Pettit & Bowie, 1999):
 - random sensitivity = predicted residues ÷ total residues
@@ -264,17 +251,15 @@ Proteins from organisms living at different temperatures are compared:
 | Hyperthermophile | > 80 °C |
 For each class the mean SAFD is computed for **functional sites** and for the **bulk surface**.
 ```mermaid
-
 flowchart LR
 
-&#x20;   A\["Analysis group<br/>of PDB IDs"] --> B\["Compute SAFD<br/>per structure"]
+A\["Analysis group<br/>of PDB IDs"] --> B\["Compute SAFD<br/>per structure"]
 
-&#x20;   B --> C\["Split surface atoms into<br/>site and non-site"]
+B --> C\["Split surface atoms into<br/>site and non-site"]
 
-&#x20;   C --> D\["Mean SAFD of each part"]
+C --> D\["Mean SAFD of each part"]
 
-&#x20;   D --> E\["Welch t-test<br/>and bar or line plot"]
-
+D --> E\["Welch t-test<br/>and bar or line plot"]
 ```
 ---
 ## 🧪 Datasets
@@ -325,29 +310,34 @@ Functional sites remain somewhat rougher than the bulk surface across all three 
 ## 📦 Installation
 **Requirements:** Python 3.8+
 
+```bash
 git clone https://github.com/Srihaasinipinisetti/Protein-surface-roughness-using-safd.git
-
 cd Protein-surface-roughness-using-safd
+```
 
 Create a virtual environment:
 
 \# Windows
 
+```powershell
 python -m venv .venv
-
 .venv\\Scripts\\activate
+```
 
 
 
 \# Linux / macOS
 
+```bash
 python3 -m venv .venv
-
 source .venv/bin/activate
+```
 
 Install the dependencies:
 
+```bash
 pip install numpy scipy matplotlib biopython requests scikit-learn
+```
 
 | Library | Purpose |
 |---|---|
@@ -361,22 +351,22 @@ pip install numpy scipy matplotlib biopython requests scikit-learn
 ## ▶️ Usage
 ### Run everything
 
-python run\_full\_project.py
+```bash
+python run_full_project.py
+```
 
 ```mermaid
-
 flowchart LR
 
-&#x20;   A\["Create pdbs and<br/>results folders"] --> B\["Download missing<br/>PDB files"]
+A\["Create pdbs and<br/>results folders"] --> B\["Download missing<br/>PDB files"]
 
-&#x20;   B --> C\["Validation<br/>bound, apo, non-cleft"]
+B --> C\["Validation<br/>bound, apo, non-cleft"]
 
-&#x20;   C --> D\["Site-size<br/>analysis"]
+C --> D\["Site-size<br/>analysis"]
 
-&#x20;   D --> E\["Thermal<br/>analysis"]
+D --> E\["Thermal<br/>analysis"]
 
-&#x20;   E --> F\["Save 3 PNG plots"]
-
+E --> F\["Save 3 PNG plots"]
 ```
 ### Run one step at a time
 | What you want | Command | Output |
@@ -393,25 +383,22 @@ flowchart LR
 
 ### Use it in your own code
 
-from safd import compute\_safd
+```python
+from safd import compute_safd
 
+atoms, surface_indices, safd = compute_safd("pdbs/3DFR.pdb")
 
-
-atoms, surface\_indices, safd = compute\_safd("pdbs/3DFR.pdb")
-
-
-
-\# safd maps atom index -> roughness value
-
-for idx in surface\_indices\[:5]:
-
-&#x20;   atom = atoms\[idx]
-
-&#x20;   print(atom.get\_parent().get\_resname(), atom.get\_name(), round(safd\[idx], 2))
+# safd maps atom index -> roughness value
+for idx in surface_indices[:5]:
+    atom = atoms[idx]
+    print(atom.get_parent().get_resname(), atom.get_name(), round(safd[idx], 2))
+```
 
 Settings can be changed:
 
-compute\_safd("pdbs/3DFR.pdb", probe\_radii=\[1.2, 1.4, 1.6, 1.8, 2.1], cutoff=5.0)
+```python
+compute_safd("pdbs/3DFR.pdb", probe_radii=[1.2, 1.4, 1.6, 1.8, 2.1], cutoff=5.0)
+```
 
 ### Visualize roughness in 3D
 benchmark.py writes results/<PDB>\_safd.pdb with each atom's SAFD stored in the **B-factor column**. Any viewer that can color by B-factor will show roughness directly:
@@ -420,11 +407,11 @@ benchmark.py writes results/<PDB>\_safd.pdb with each atom's SAFD stored in the 
 | Low | Smoother surface |
 | High | Rougher surface |
 
-\# PyMOL
-
-load results/3DFR\_safd.pdb
-
-spectrum b, blue\_white\_red
+```text
+# PyMOL
+load results/3DFR_safd.pdb
+spectrum b, blue_white_red
+```
 
 ---
 ## 📁 Project structure
