@@ -2,7 +2,23 @@
 **In one sentence:** this project measures how *rough* each part of a protein's surface is, and tests whether the roughest regions are where the protein binds other molecules.
 
 **Contents**
-[Overview](#-overview) · [Key terms](#-key-terms-in-plain-english) · [How SAFD works](#-how-safd-works) · [Pipeline](#-the-full-pipeline) · [Functional sites](#-how-functional-sites-are-identified) · [Pocket prediction](#-binding-pocket-prediction) · [Analyses](#-analyses) · [Datasets](#-datasets) · [Results](#-results) · [Install](#-installation) · [Usage](#-usage) · [Structure](#-project-structure) · [Limitations](#-notes-and-limitations)
+## 📚 Contents
+
+| Section | What you'll find |
+|---|---|
+| 📖 [Overview](#-overview) | Project idea and motivation |
+| 📚 [Key Terms](#-key-terms-in-plain-english) | Important concepts explained simply |
+| 📐 [How SAFD Works](#-how-safd-works) | SAFD intuition, calculation, and formula |
+| 🧠 [The Full Pipeline](#-the-full-pipeline) | Complete workflow of the project |
+| 🧩 [Functional Sites](#-how-functional-sites-are-identified) | How binding sites are identified |
+| 🔎 [Binding Pocket Prediction](#-binding-pocket-prediction) | High-SAFD regions and DBSCAN clustering |
+| 🔬 [Analyses](#-analyses) | Validation, site-size, and thermal analyses |
+| 🧪 [Datasets](#-datasets) | Protein structures and PDB IDs used |
+| 📊 [Results](#-results) | Graphs and major observations |
+| 📦 [Installation](#-installation) | Setup and required libraries |
+| ▶️ [Usage](#-usage) | How to run the project |
+| 📁 [Project Structure](#-project-structure) | Repository files and folders |
+| ⚠️ [Limitations](#-notes-and-limitations) | Limitations and future work |
 ---
 ## 📖 Overview
 A protein surface is not smooth. It has grooves, pockets, bumps and flat patches. Regions where a protein binds a ligand, drug or partner protein (**binding sites**) often have a different shape from the rest of the surface.
