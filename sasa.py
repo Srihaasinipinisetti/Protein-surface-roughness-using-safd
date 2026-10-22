@@ -17,8 +17,12 @@ def generate_golden_spiral_sphere(n_points=96):
     z = np.cos(phi)
     return np.column_stack((x, y, z))
 
-def compute_atomic_contact_areas(coords, elements, probe_radius=1.4, n_test_points=96):
-    """Computes contact/accessible area per atom using Shrake-Rupley."""
+def compute_atomic_contact_areas(coords, elements, probe_radius=1.4, n_test_points=96, use_contact_area=True):
+    """
+    Computes atomic contact area (Richards, 1977) or accessible surface area (Lee & Richards, 1971).
+    Per Pettit & Bowie (1999) Eq. 2, SAFD requires contact area on the atomic van der Waals
+    sphere surface (r_vdw^2) rather than accessible area ((r_vdw + Rp)^2).
+    """
     n_atoms = len(coords)
     radii = np.array([VDW_RADII.get(e.upper(), 1.70) for e in elements])
     effective_radii = radii + probe_radius
@@ -29,7 +33,8 @@ def compute_atomic_contact_areas(coords, elements, probe_radius=1.4, n_test_poin
     
     for i in range(n_atoms):
         r_eff = effective_radii[i]
-        # Generate test points on the expanded sphere surface
+        r_base = radii[i] if use_contact_area else r_eff
+        # Generate test points on the expanded sphere surface to test solvent probe clearance
         test_points = coords[i] + unit_sphere_pts * r_eff
         
         # Find neighboring atoms that could occlude points
@@ -37,7 +42,7 @@ def compute_atomic_contact_areas(coords, elements, probe_radius=1.4, n_test_poin
         neighbor_indices = [idx for idx in neighbor_indices if idx != i]
         
         if not neighbor_indices:
-            areas[i] = 4.0 * np.pi * (r_eff**2)
+            areas[i] = 4.0 * np.pi * (r_base**2)
             continue
             
         neigh_coords = coords[neighbor_indices]
@@ -52,6 +57,6 @@ def compute_atomic_contact_areas(coords, elements, probe_radius=1.4, n_test_poin
         is_occluded = np.any(dist_sq < (neigh_eff_radii**2), axis=1)
         accessible_points = np.sum(~is_occluded)
         
-        areas[i] = (4.0 * np.pi * (r_eff**2)) * (accessible_points / n_test_points)
+        areas[i] = (4.0 * np.pi * (r_base**2)) * (accessible_points / n_test_points)
         
     return areas

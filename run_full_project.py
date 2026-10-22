@@ -69,79 +69,97 @@ def get_site_atom_indices(pdb_path, atoms, contact_cutoff=4.0):
     return set()
 
 def analyze_dataset_group(pdb_list):
-    site_safds, non_site_safds = [], []
+    """
+    Computes group roughness per Pettit & Bowie (1999) Table 1:
+    Takes the median SAFD of exposed site and non-site atoms for each protein,
+    then averages across all proteins in the set, quoting SEM and Student's t-test.
+    """
+    protein_site_meds = []
+    protein_non_meds = []
+    
     for pdb in pdb_list:
         path = ensure_downloaded(pdb)
         try:
             atoms, surface_indices, safd_values = compute_safd(path)
             site_indices = get_site_atom_indices(path, atoms)
-            for idx in surface_indices:
-                f_val = safd_values.get(idx, 2.0)
-                if idx in site_indices:
-                    site_safds.append(f_val)
-                else:
-                    non_site_safds.append(f_val)
+            
+            p_site = [safd_values.get(idx, 2.0) for idx in surface_indices if idx in site_indices]
+            p_non = [safd_values.get(idx, 2.0) for idx in surface_indices if idx not in site_indices]
+            
+            if p_site and p_non:
+                protein_site_meds.append(np.median(p_site))
+                protein_non_meds.append(np.median(p_non))
         except Exception as e:
             print(f"Error on {pdb}: {e}")
-    site_m = np.mean(site_safds) if site_safds else 0.0
-    non_m = np.mean(non_site_safds) if non_site_safds else 0.0
-    _, p_val = ttest_ind(site_safds, non_site_safds, equal_var=False) if site_safds else (0, 1.0)
-    return site_m, non_m, p_val
+            
+    if protein_site_meds:
+        n = len(protein_site_meds)
+        site_m = float(np.mean(protein_site_meds))
+        site_sem = float(np.std(protein_site_meds, ddof=1) / np.sqrt(n)) if n > 1 else 0.0
+        non_m = float(np.mean(protein_non_meds))
+        non_sem = float(np.std(protein_non_meds, ddof=1) / np.sqrt(n)) if n > 1 else 0.0
+        _, p_val = ttest_ind(protein_site_meds, protein_non_meds, equal_var=False) if n > 1 else (0, 1.0)
+    else:
+        site_m, site_sem, non_m, non_sem, p_val = 0.0, 0.0, 0.0, 0.0, 1.0
+        
+    return site_m, site_sem, non_m, non_sem, p_val
 
 def main():
     print("=" * 60)
-    print("RUNNING FULL SAFD PIPELINE (OBJECTIVES 1 - 5)")
+    print("RUNNING FULL SAFD PIPELINE (PETTIT & BOWIE 1999 REPLICATION)")
     print("=" * 60)
 
     # 1. Validation Suites
     print("\n[1/3] Running Validation Suites (Bound, Apo, Non-Cleft)...")
-    b_site, b_non, b_p = analyze_dataset_group(DATASET_CONFIG["bound"])
-    a_site, a_non, a_p = analyze_dataset_group(DATASET_CONFIG["apo"])
-    nc_site, nc_non, nc_p = analyze_dataset_group(DATASET_CONFIG["non_cleft"])
+    b_site, b_s_sem, b_non, b_ns_sem, b_p = analyze_dataset_group(DATASET_CONFIG["bound"])
+    a_site, a_s_sem, a_non, a_ns_sem, a_p = analyze_dataset_group(DATASET_CONFIG["apo"])
+    nc_site, nc_s_sem, nc_non, nc_ns_sem, nc_p = analyze_dataset_group(DATASET_CONFIG["non_cleft"])
     
-    print(f"  Bound:      Site = {b_site:.2f} | Non-Site = {b_non:.2f} | p = {b_p:.3e}")
-    print(f"  Apo:        Site = {a_site:.2f} | Non-Site = {a_non:.2f} | p = {a_p:.3e}")
-    print(f"  Non-Cleft:  Site = {nc_site:.2f} | Non-Site = {nc_non:.2f} | p = {nc_p:.3e}")
+    print(f"  Bound:      Site = {b_site:.2f} ± {b_s_sem:.2f} | Non-Site = {b_non:.2f} ± {b_ns_sem:.2f} | p = {b_p:.3e}")
+    print(f"  Apo:        Site = {a_site:.2f} ± {a_s_sem:.2f} | Non-Site = {a_non:.2f} ± {a_ns_sem:.2f} | p = {a_p:.3e}")
+    print(f"  Non-Cleft:  Site = {nc_site:.2f} ± {nc_s_sem:.2f} | Non-Site = {nc_non:.2f} ± {nc_ns_sem:.2f} | p = {nc_p:.3e}")
 
     labels = ['Bound Sites', 'Apo (No Ligand)', 'Non-Cleft Sites']
     x = np.arange(len(labels))
     w = 0.35
     fig, ax = plt.subplots(figsize=(8, 5))
-    ax.bar(x - w/2, [b_site, a_site, nc_site], w, label='Functional Site', color='#006699')
-    ax.bar(x + w/2, [b_non, a_non, nc_non], w, label='Non-Site', color='#99ccdd')
+    ax.bar(x - w/2, [b_site, a_site, nc_site], w, yerr=[b_s_sem, a_s_sem, nc_s_sem], capsize=5, label='Functional Site', color='#006699', edgecolor='black', alpha=0.9)
+    ax.bar(x + w/2, [b_non, a_non, nc_non], w, yerr=[b_ns_sem, a_ns_sem, nc_ns_sem], capsize=5, label='Non-Site', color='#99ccdd', edgecolor='black', alpha=0.9)
     ax.set_ylabel('Mean Roughness (SAFD)')
-    ax.set_title('Validation: Site vs Non-Site Roughness')
+    ax.set_title('Validation: Site vs Non-Site Roughness (Pettit & Bowie Table 1)')
     ax.set_xticks(x)
     ax.set_xticklabels(labels)
-    ax.set_ylim(0, 5)
+    ax.set_ylim(0, 6.5)
+    ax.axhline(2.0, color='gray', linestyle='--', linewidth=0.8, label='Smooth baseline (f=2)')
     ax.legend()
     plt.tight_layout()
-    plt.savefig("validation_results.png")
+    plt.savefig("validation_results.png", dpi=150)
 
     # 2. Site-Size Analysis
     print("\n[2/3] Running Site-Size Analysis (<600 vs >600 A^2)...")
-    sm_site, sm_non, sm_p = analyze_dataset_group(DATASET_CONFIG["small_sites"])
-    lg_site, lg_non, lg_p = analyze_dataset_group(DATASET_CONFIG["large_sites"])
-    print(f"  Small Sites (<600 A^2): Site = {sm_site:.2f} | Non-Site = {sm_non:.2f} | p = {sm_p:.3e}")
-    print(f"  Large Sites (>600 A^2): Site = {lg_site:.2f} | Non-Site = {lg_non:.2f} | p = {lg_p:.3e}")
+    sm_site, sm_s_sem, sm_non, sm_ns_sem, sm_p = analyze_dataset_group(DATASET_CONFIG["small_sites"])
+    lg_site, lg_s_sem, lg_non, lg_ns_sem, lg_p = analyze_dataset_group(DATASET_CONFIG["large_sites"])
+    print(f"  Small Sites (<600 A^2): Site = {sm_site:.2f} ± {sm_s_sem:.2f} | Non-Site = {sm_non:.2f} ± {sm_ns_sem:.2f} | p = {sm_p:.3e}")
+    print(f"  Large Sites (>600 A^2): Site = {lg_site:.2f} ± {lg_s_sem:.2f} | Non-Site = {lg_non:.2f} ± {lg_ns_sem:.2f} | p = {lg_p:.3e}")
 
     fig, ax = plt.subplots(figsize=(7, 5))
-    ax.bar([0 - w/2, 1 - w/2], [sm_site, lg_site], w, label='Functional Site', color='#e67e22')
-    ax.bar([0 + w/2, 1 + w/2], [sm_non, lg_non], w, label='Non-Site', color='#f5cba7')
+    ax.bar([0 - w/2, 1 - w/2], [sm_site, lg_site], w, yerr=[sm_s_sem, lg_s_sem], capsize=5, label='Functional Site', color='#e67e22', edgecolor='black', alpha=0.9)
+    ax.bar([0 + w/2, 1 + w/2], [sm_non, lg_non], w, yerr=[sm_ns_sem, lg_ns_sem], capsize=5, label='Non-Site', color='#f5cba7', edgecolor='black', alpha=0.9)
     ax.set_ylabel('Mean Roughness (SAFD)')
-    ax.set_title('Roughness vs. Site Size')
+    ax.set_title('Roughness vs. Site Size (Pettit & Bowie Table 1)')
     ax.set_xticks([0, 1])
     ax.set_xticklabels(['Small (<600 Å²)', 'Large (>600 Å²)'])
-    ax.set_ylim(0, 5)
+    ax.set_ylim(0, 6.5)
+    ax.axhline(2.0, color='gray', linestyle='--', linewidth=0.8, label='Smooth baseline (f=2)')
     ax.legend()
     plt.tight_layout()
-    plt.savefig("site_size_result.png")
+    plt.savefig("site_size_result.png", dpi=150)
 
-    # 3. Thermal Extension
-    print("\n[3/3] Running Thermal Adaptation Extension...")
+    # 3. Thermal Extension (Novel Project Contribution)
+    print("\n[3/3] Running Thermal Adaptation (Project Extension beyond Paper)...")
     thermal_res = {}
     for grp, pdbs in DATASET_CONFIG["thermal"].items():
-        s_m, b_m, _ = analyze_dataset_group(pdbs)
+        s_m, _, b_m, _, _ = analyze_dataset_group(pdbs)
         thermal_res[grp] = {"site": s_m, "bulk": b_m}
         print(f"  {grp:<26}: Site = {s_m:.2f} | Bulk = {b_m:.2f}")
 
@@ -150,12 +168,12 @@ def main():
     ax.plot(classes, [thermal_res[c]["site"] for c in classes], marker='o', lw=2.5, color='#e67e22', label='Functional Site')
     ax.plot(classes, [thermal_res[c]["bulk"] for c in classes], marker='s', lw=2.5, color='#2980b9', label='Bulk Surface')
     ax.set_ylabel('Mean Roughness (SAFD)')
-    ax.set_title('Thermal Adaptation: Site vs Bulk Surface Roughness')
-    ax.set_ylim(2.0, 5.0)
+    ax.set_title('Thermal Adaptation: Site vs Bulk Surface Roughness (Extension)')
+    ax.set_ylim(2.0, 5.5)
     ax.grid(True, linestyle='--', alpha=0.6)
     ax.legend()
     plt.tight_layout()
-    plt.savefig("thermal_adaptation_result.png")
+    plt.savefig("thermal_adaptation_result.png", dpi=150)
 
     print("\n" + "=" * 60)
     print("ALL RUNS COMPLETE")

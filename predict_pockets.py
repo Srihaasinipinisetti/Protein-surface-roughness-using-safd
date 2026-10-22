@@ -17,8 +17,10 @@ def extract_ligand_coords(pdb_path):
                 
     return np.array(ligand_coords)
 
-def cluster_high_safd_atoms(atoms, safd_values, f_threshold=3.4, eps=4.5, min_samples=3):
-    """Slide 12: DBSCAN clustering of high-roughness atoms."""
+def cluster_high_safd_atoms(atoms, safd_values, f_threshold=3.4, eps=4.5, min_samples=3, max_dist=None):
+    """DBSCAN clustering of high-roughness atoms into candidate binding pockets."""
+    if max_dist is not None:
+        eps = max_dist
     candidate_indices = [idx for idx, f in safd_values.items() if f >= f_threshold]
     if not candidate_indices:
         return []

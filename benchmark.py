@@ -113,8 +113,8 @@ def run_benchmark(pdb_list):
             continue
             
         atoms, _, safd_values = compute_safd(pdb_path)
-        # Using f >= 3.6 captures the full local pocket pocket without over-clustering
-        clusters = cluster_high_safd_atoms(atoms, safd_values, f_threshold=3.6, max_dist=5.0)
+        # Using f >= 3.6 captures the full local pocket without over-clustering
+        clusters = cluster_high_safd_atoms(atoms, safd_values, f_threshold=3.6, eps=4.5)
         partner_coords = extract_binding_partner_coords(pdb_path)
         
         save_safd_to_pdb(pdb_path, f"results/{pdb_id}_safd.pdb", safd_values)
