@@ -458,6 +458,8 @@ Protein-surface-roughness-using-safd/
 
 ├── thermal\_adaptation\_result.png
 
+├── CALCULATIONS\_AND\_STATISTICAL\_TABLES.md # Full math derivations, p-value calculations, and tables
+
 └── README.md
 
 ---
